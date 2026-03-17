@@ -315,25 +315,30 @@ setup_iptables() {
     server_ip="$VLESS_HOST"
   fi
 
-  # Flush existing rules
-  $ipt -t nat -F OUTPUT 2>/dev/null || true
+  local chain="VLESS_GATEWAY"
+
+  # Keep Docker-managed OUTPUT rules intact, especially embedded DNS on 127.0.0.11.
+  $ipt -t nat -N "$chain" 2>/dev/null || true
+  $ipt -t nat -F "$chain"
+  $ipt -t nat -D OUTPUT -j "$chain" 2>/dev/null || true
+  $ipt -t nat -I OUTPUT 1 -j "$chain"
 
   # Exclude localhost and VLESS server
-  $ipt -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
-  $ipt -t nat -A OUTPUT -d "$server_ip" -j RETURN
+  $ipt -t nat -A "$chain" -d 127.0.0.0/8 -j RETURN
+  $ipt -t nat -A "$chain" -d "$server_ip" -j RETURN
 
   # Keep container-to-container and LAN traffic local instead of sending it through VLESS.
   IFS=',' read -ra BYPASS_ARR <<< "$BYPASS_CIDRS"
   for cidr in "${BYPASS_ARR[@]}"; do
     cidr="${cidr// /}"
     [[ -n "$cidr" ]] || continue
-    $ipt -t nat -A OUTPUT -d "$cidr" -j RETURN
+    $ipt -t nat -A "$chain" -d "$cidr" -j RETURN
   done
 
   # Redirect all TCP to transparent proxy
-  $ipt -t nat -A OUTPUT -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
+  $ipt -t nat -A "$chain" -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
 
-  log_info "iptables configured via $ipt (excluding $server_ip and local subnets)"
+  log_info "iptables configured via $ipt using chain $chain (excluding $server_ip and local subnets)"
 }
 
 # ============ Main ============
