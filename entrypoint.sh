@@ -242,6 +242,20 @@ generate_xray_config() {
 
 # ============ iptables ============
 
+setup_dns() {
+  log_info "Configuring DNS..."
+
+  # Override Docker's embedded DNS with external DNS
+  # This ensures DNS queries go through the proxy
+  local first_dns="${DNS_SERVERS%%,*}"
+
+  cat > /etc/resolv.conf <<EOF
+nameserver $first_dns
+EOF
+
+  log_info "DNS set to $first_dns"
+}
+
 setup_iptables() {
   log_info "Setting up iptables redirect..."
 
@@ -260,11 +274,8 @@ setup_iptables() {
   # Flush existing rules
   $ipt -t nat -F OUTPUT 2>/dev/null || true
 
-  # Exclude local/private networks and VLESS server
-  $ipt -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
-  $ipt -t nat -A OUTPUT -d 10.0.0.0/8 -j RETURN
-  $ipt -t nat -A OUTPUT -d 172.16.0.0/12 -j RETURN
-  $ipt -t nat -A OUTPUT -d 192.168.0.0/16 -j RETURN
+  # Exclude only localhost (not full 127.0.0.0/8) and VLESS server
+  $ipt -t nat -A OUTPUT -d 127.0.0.1 -j RETURN
   $ipt -t nat -A OUTPUT -d "$server_ip" -j RETURN
 
   # Redirect all TCP to transparent proxy
@@ -299,6 +310,7 @@ main() {
   fi
 
   # Setup networking
+  setup_dns
   setup_iptables
 
   # Run Xray
