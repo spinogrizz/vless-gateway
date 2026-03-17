@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     curl \
     jq \
     iptables \
+    iptables-legacy \
     ca-certificates
 
 RUN ARCH="$(apk --print-arch)" && \

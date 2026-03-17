@@ -245,6 +245,12 @@ generate_xray_config() {
 setup_iptables() {
   log_info "Setting up iptables redirect..."
 
+  # Use iptables-legacy to avoid nftables conflicts
+  local ipt="iptables-legacy"
+  if ! command -v "$ipt" &>/dev/null; then
+    ipt="iptables"
+  fi
+
   local server_ip=$(resolve_host "$VLESS_HOST")
   if [[ -z "$server_ip" ]]; then
     log_warn "Could not resolve $VLESS_HOST, using hostname directly"
@@ -252,22 +258,22 @@ setup_iptables() {
   fi
 
   # Flush existing rules
-  iptables -t nat -F OUTPUT 2>/dev/null || true
+  $ipt -t nat -F OUTPUT 2>/dev/null || true
 
   # Exclude local/private networks and VLESS server
-  iptables -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
-  iptables -t nat -A OUTPUT -d 10.0.0.0/8 -j RETURN
-  iptables -t nat -A OUTPUT -d 172.16.0.0/12 -j RETURN
-  iptables -t nat -A OUTPUT -d 192.168.0.0/16 -j RETURN
-  iptables -t nat -A OUTPUT -d "$server_ip" -j RETURN
+  $ipt -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
+  $ipt -t nat -A OUTPUT -d 10.0.0.0/8 -j RETURN
+  $ipt -t nat -A OUTPUT -d 172.16.0.0/12 -j RETURN
+  $ipt -t nat -A OUTPUT -d 192.168.0.0/16 -j RETURN
+  $ipt -t nat -A OUTPUT -d "$server_ip" -j RETURN
 
   # Redirect all TCP to transparent proxy
-  iptables -t nat -A OUTPUT -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
+  $ipt -t nat -A OUTPUT -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
 
   # Redirect UDP (DNS and others)
-  iptables -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$PROXY_PORT"
+  $ipt -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$PROXY_PORT"
 
-  log_info "iptables configured (excluding $server_ip)"
+  log_info "iptables configured via $ipt (excluding $server_ip)"
 }
 
 # ============ Main ============
