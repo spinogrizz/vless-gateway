@@ -40,6 +40,8 @@ init_defaults() {
   PROXY_PORT="${PROXY_PORT:-12345}"
   DNS_SERVERS="${DNS_SERVERS:-1.1.1.1,8.8.8.8}"
   XRAY_LOGLEVEL="${XRAY_LOGLEVEL:-warning}"
+  PRESERVE_DOCKER_DNS="${PRESERVE_DOCKER_DNS:-true}"
+  BYPASS_CIDRS="${BYPASS_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16}"
 
   # VLESS defaults
   VLESS_HOST="${VLESS_HOST:-}"
@@ -286,6 +288,11 @@ generate_xray_config() {
 setup_dns() {
   log_info "Configuring DNS..."
 
+  if [[ "$PRESERVE_DOCKER_DNS" == "true" ]] && grep -q '127\.0\.0\.11' /etc/resolv.conf 2>/dev/null; then
+    log_info "Keeping Docker embedded DNS (127.0.0.11) for container name resolution"
+    return
+  fi
+
   cat > /etc/resolv.conf <<EOF
 nameserver 127.0.0.1
 EOF
@@ -315,10 +322,18 @@ setup_iptables() {
   $ipt -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
   $ipt -t nat -A OUTPUT -d "$server_ip" -j RETURN
 
+  # Keep container-to-container and LAN traffic local instead of sending it through VLESS.
+  IFS=',' read -ra BYPASS_ARR <<< "$BYPASS_CIDRS"
+  for cidr in "${BYPASS_ARR[@]}"; do
+    cidr="${cidr// /}"
+    [[ -n "$cidr" ]] || continue
+    $ipt -t nat -A OUTPUT -d "$cidr" -j RETURN
+  done
+
   # Redirect all TCP to transparent proxy
   $ipt -t nat -A OUTPUT -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
 
-  log_info "iptables configured via $ipt (excluding $server_ip)"
+  log_info "iptables configured via $ipt (excluding $server_ip and local subnets)"
 }
 
 # ============ Main ============

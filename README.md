@@ -75,6 +75,8 @@ services:
 |----------|---------|-------------|
 | `DNS_SERVERS` | `1.1.1.1,8.8.8.8` | DNS servers (comma-separated) |
 | `XRAY_LOGLEVEL` | `warning` | Log level: `debug`, `info`, `warning`, `error` |
+| `PRESERVE_DOCKER_DNS` | `true` | Keep Docker DNS (`127.0.0.11`) so service names like `redis` still resolve |
+| `BYPASS_CIDRS` | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16` | Subnets that should stay local and not be routed through VLESS |
 
 ## How It Works
 
@@ -87,6 +89,16 @@ services:
 
 - `--cap-add NET_ADMIN` is required for iptables
 - Use `network_mode: "service:gateway"` or `--network container:vless-gateway`
+
+## Docker Service Discovery
+
+If you share the gateway network namespace with another container, that container also inherits the gateway DNS/routing behavior.
+
+To keep names like `redis` working:
+
+- attach `gateway` and `redis` to the same user-defined Docker network
+- keep `PRESERVE_DOCKER_DNS=true` so Docker's embedded DNS (`127.0.0.11`) is not replaced
+- keep local Docker/LAN subnets in `BYPASS_CIDRS` so traffic to `redis` is not sent through VLESS
 
 ## License
 
