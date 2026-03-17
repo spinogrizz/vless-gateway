@@ -49,6 +49,27 @@ services:
       - gateway
 ```
 
+## SOCKS5 / HTTP Proxy
+
+The gateway also exposes SOCKS5 (`1080`) and HTTP (`8080`) proxies for containers that can't share network namespace.
+
+To connect from a separate compose project, use an external network:
+
+```yaml
+# In gateway compose - add:
+networks:
+  proxy:
+    name: proxy-network
+
+# In other compose - add:
+networks:
+  proxy:
+    external: true
+    name: proxy-network
+```
+
+Then use `socks5://gateway:1080` or `http://gateway:8080` as proxy URL.
+
 ## Environment Variables
 
 ### VLESS Configuration
