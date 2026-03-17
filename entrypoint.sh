@@ -198,35 +198,20 @@ generate_xray_config() {
     --arg vport "$VLESS_PORT" \
     --argjson user "$user_obj" \
     --argjson stream "$stream_settings" \
-    --argjson dns "$dns_json" \
     '{
       log: {loglevel: $loglevel},
-      dns: {
-        servers: $dns,
-        queryStrategy: "UseIP"
-      },
       inbounds: [
         {
           tag: "transparent",
           port: ($port | tonumber),
           protocol: "dokodemo-door",
           settings: {
-            network: "tcp,udp",
+            network: "tcp",
             followRedirect: true
           },
           sniffing: {
             enabled: true,
-            destOverride: ["http", "tls", "quic"]
-          }
-        },
-        {
-          tag: "dns-in",
-          port: 53,
-          protocol: "dokodemo-door",
-          settings: {
-            address: "1.1.1.1",
-            port: 53,
-            network: "udp"
+            destOverride: ["http", "tls"]
           }
         }
       ],
@@ -246,21 +231,8 @@ generate_xray_config() {
         {
           tag: "direct",
           protocol: "freedom"
-        },
-        {
-          tag: "dns-out",
-          protocol: "dns"
         }
-      ],
-      routing: {
-        rules: [
-          {
-            type: "field",
-            inboundTag: ["dns-in"],
-            outboundTag: "dns-out"
-          }
-        ]
-      }
+      ]
     }' > "$XRAY_CONFIG"
 
   log_info "Config written to $XRAY_CONFIG"
@@ -269,14 +241,9 @@ generate_xray_config() {
 # ============ iptables ============
 
 setup_dns() {
-  log_info "Configuring DNS..."
-
-  # Point to local Xray DNS server on port 53
-  cat > /etc/resolv.conf <<EOF
-nameserver 127.0.0.1
-EOF
-
-  log_info "DNS set to 127.0.0.1 (Xray DNS)"
+  # Keep Docker's embedded DNS (127.0.0.11) for local container names
+  # External DNS queries are forwarded by Docker through the host
+  log_info "Using Docker DNS for local name resolution"
 }
 
 setup_iptables() {
