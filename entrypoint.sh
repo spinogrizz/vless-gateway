@@ -201,7 +201,10 @@ generate_xray_config() {
     --argjson dns "$dns_json" \
     '{
       log: {loglevel: $loglevel},
-      dns: {servers: $dns},
+      dns: {
+        servers: $dns,
+        queryStrategy: "UseIP"
+      },
       inbounds: [
         {
           tag: "transparent",
@@ -214,6 +217,16 @@ generate_xray_config() {
           sniffing: {
             enabled: true,
             destOverride: ["http", "tls", "quic"]
+          }
+        },
+        {
+          tag: "dns-in",
+          port: 53,
+          protocol: "dokodemo-door",
+          settings: {
+            address: "1.1.1.1",
+            port: 53,
+            network: "udp"
           }
         }
       ],
@@ -233,8 +246,21 @@ generate_xray_config() {
         {
           tag: "direct",
           protocol: "freedom"
+        },
+        {
+          tag: "dns-out",
+          protocol: "dns"
         }
-      ]
+      ],
+      routing: {
+        rules: [
+          {
+            type: "field",
+            inboundTag: ["dns-in"],
+            outboundTag: "dns-out"
+          }
+        ]
+      }
     }' > "$XRAY_CONFIG"
 
   log_info "Config written to $XRAY_CONFIG"
@@ -245,15 +271,12 @@ generate_xray_config() {
 setup_dns() {
   log_info "Configuring DNS..."
 
-  # Override Docker's embedded DNS with external DNS
-  # This ensures DNS queries go through the proxy
-  local first_dns="${DNS_SERVERS%%,*}"
-
+  # Point to local Xray DNS server on port 53
   cat > /etc/resolv.conf <<EOF
-nameserver $first_dns
+nameserver 127.0.0.1
 EOF
 
-  log_info "DNS set to $first_dns"
+  log_info "DNS set to 127.0.0.1 (Xray DNS)"
 }
 
 setup_iptables() {
@@ -274,15 +297,12 @@ setup_iptables() {
   # Flush existing rules
   $ipt -t nat -F OUTPUT 2>/dev/null || true
 
-  # Exclude only localhost (not full 127.0.0.0/8) and VLESS server
-  $ipt -t nat -A OUTPUT -d 127.0.0.1 -j RETURN
+  # Exclude localhost and VLESS server
+  $ipt -t nat -A OUTPUT -d 127.0.0.0/8 -j RETURN
   $ipt -t nat -A OUTPUT -d "$server_ip" -j RETURN
 
   # Redirect all TCP to transparent proxy
   $ipt -t nat -A OUTPUT -p tcp -j REDIRECT --to-ports "$PROXY_PORT"
-
-  # Redirect UDP (DNS and others)
-  $ipt -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$PROXY_PORT"
 
   log_info "iptables configured via $ipt (excluding $server_ip)"
 }
