@@ -1,0 +1,43 @@
+services:
+  gateway:
+    build: .
+    # image: spinogrizz/vless-gateway:latest
+    container_name: vless-gateway
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+
+    environment:
+      # Option 1: Use VLESS URL (recommended)
+      VLESS_URL: "vless://uuid@host:443?type=tcp&security=reality&pbk=...&sni=example.com&sid=abc&fp=chrome&flow=xtls-rprx-vision"
+
+      # Option 2: Use individual variables
+      # VLESS_HOST: "1.2.3.4"
+      # VLESS_PORT: "443"
+      # VLESS_UUID: "your-uuid-here"
+      # VLESS_SECURITY: "reality"
+      # VLESS_SNI: "example.com"
+      # VLESS_PBK: "public-key"
+      # VLESS_SID: "short-id"
+      # VLESS_FP: "chrome"
+      # VLESS_FLOW: "xtls-rprx-vision"
+      # VLESS_TRANSPORT: "tcp"
+
+      # Optional settings
+      # DNS_SERVERS: "1.1.1.1,8.8.8.8"
+      # XRAY_LOGLEVEL: "warning"
+
+  # Example: route curl through VLESS
+  curl:
+    image: curlimages/curl
+    network_mode: "service:gateway"
+    depends_on:
+      - gateway
+    command: ["sh", "-c", "sleep 5 && curl -s ifconfig.me"]
+
+  # Example: any app routed through VLESS
+  # myapp:
+  #   image: myapp:latest
+  #   network_mode: "service:gateway"
+  #   depends_on:
+  #     - gateway
