@@ -323,6 +323,9 @@ setup_iptables() {
   $ipt -t nat -D OUTPUT -j "$chain" 2>/dev/null || true
   $ipt -t nat -I OUTPUT 1 -j "$chain"
 
+  # Exclude traffic from xray user (prevents redirect loops)
+  $ipt -t nat -A "$chain" -m owner --uid-owner xray -j RETURN
+
   # Exclude localhost and VLESS server
   $ipt -t nat -A "$chain" -d 127.0.0.0/8 -j RETURN
   $ipt -t nat -A "$chain" -d "$server_ip" -j RETURN
@@ -367,9 +370,9 @@ main() {
   setup_dns
   setup_iptables
 
-  # Run Xray
-  log_info "Starting Xray..."
-  exec xray run -config "$XRAY_CONFIG"
+  # Run Xray as dedicated user (traffic from this user is excluded from iptables redirect)
+  log_info "Starting Xray as user 'xray'..."
+  exec su-exec xray xray run -config "$XRAY_CONFIG"
 }
 
 main "$@"

@@ -8,7 +8,10 @@ RUN apk add --no-cache \
     jq \
     iptables \
     iptables-legacy \
-    ca-certificates
+    ca-certificates \
+    su-exec \
+    libcap && \
+    adduser -D -H -s /sbin/nologin xray
 
 RUN ARCH="$(apk --print-arch)" && \
     case "$ARCH" in \
@@ -21,7 +24,8 @@ RUN ARCH="$(apk --print-arch)" && \
       "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip" && \
     unzip -q /tmp/xray.zip -d /tmp/xray && \
     install -m 0755 /tmp/xray/xray /usr/local/bin/xray && \
-    rm -rf /tmp/xray /tmp/xray.zip
+    rm -rf /tmp/xray /tmp/xray.zip && \
+    setcap 'cap_net_bind_service=+ep' /usr/local/bin/xray
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
