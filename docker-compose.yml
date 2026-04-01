@@ -25,7 +25,8 @@ services:
 
       # Optional settings
       # DNS_SERVERS: "1.1.1.1,8.8.8.8"
-      # XRAY_LOGLEVEL: "warning"
+      # XRAY_LOGLEVEL: "warning"      # Log level (none, debug, info, warning, error)
+      # XRAY_ACCESS_LOG: "none"        # Access logs: "none" to disable, "" for stdout, or "/path/to/file"
 
   # Example: route curl through VLESS
   curl:

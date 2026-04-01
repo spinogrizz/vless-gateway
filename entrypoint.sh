@@ -40,6 +40,7 @@ init_defaults() {
   PROXY_PORT="${PROXY_PORT:-12345}"
   DNS_SERVERS="${DNS_SERVERS:-1.1.1.1,8.8.8.8}"
   XRAY_LOGLEVEL="${XRAY_LOGLEVEL:-warning}"
+  XRAY_ACCESS_LOG="${XRAY_ACCESS_LOG:-none}"
   PRESERVE_DOCKER_DNS="${PRESERVE_DOCKER_DNS:-true}"
   BYPASS_CIDRS="${BYPASS_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16}"
 
@@ -195,6 +196,7 @@ generate_xray_config() {
 
   jq -nc \
     --arg loglevel "$XRAY_LOGLEVEL" \
+    --arg access "$XRAY_ACCESS_LOG" \
     --arg port "$PROXY_PORT" \
     --arg host "$VLESS_HOST" \
     --arg vport "$VLESS_PORT" \
@@ -202,7 +204,7 @@ generate_xray_config() {
     --argjson stream "$stream_settings" \
     --argjson dns "$dns_json" \
     '{
-      log: {loglevel: $loglevel},
+      log: {loglevel: $loglevel, access: $access},
       dns: {
         servers: $dns,
         queryStrategy: "UseIP"

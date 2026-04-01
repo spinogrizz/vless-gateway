@@ -95,7 +95,8 @@ Then use `socks5://gateway:1080` or `http://gateway:8080` as proxy URL.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DNS_SERVERS` | `1.1.1.1,8.8.8.8` | DNS servers (comma-separated) |
-| `XRAY_LOGLEVEL` | `warning` | Log level: `debug`, `info`, `warning`, `error` |
+| `XRAY_LOGLEVEL` | `warning` | Log level: `debug`, `info`, `warning`, `error`, `none` |
+| `XRAY_ACCESS_LOG` | `none` | Access log output: `none` to disable, empty string for stdout, or `/path/to/file` |
 | `PRESERVE_DOCKER_DNS` | `true` | Keep Docker DNS (`127.0.0.11`) so service names like `redis` still resolve |
 | `BYPASS_CIDRS` | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16` | Subnets that should stay local and not be routed through VLESS |
 
